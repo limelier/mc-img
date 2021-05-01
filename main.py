@@ -3,9 +3,8 @@ from typing import Dict, Set
 from mcipc.rcon.je import Client
 from PIL import Image
 
-x = 0
-y = 4
-z = 0
+# coordinates for top-left corner of image
+x, y, z = 0, 4, 0
 
 
 class Color:
@@ -30,13 +29,29 @@ class Block:
         self.color = Color(r, g, b)
 
 
-def read_blocks():
-    """Read the blocks from blocks.txt, returning them as a set Block instances."""
+def read_blocks(filename):
+    """Read the blocks from blocks.txt, returning them as a set of Block instances."""
     blocks = set()
-    with open('blocks.txt') as file:
+    with open(filename) as file:
         for line in file:
             blocks.add(Block(line))
     return blocks
+
+
+def read_image(filename):
+    """Read the image, scaling it down if needed. Return pixels, width and height."""
+    with Image.open(filename) as img:
+        width, height = img.size
+        if width > 256 or height > 256:
+            print(f'Image too big ({width}x{height}), scaling down.')
+            biggest = max(width, height)
+            factor = 256 / biggest
+            width = floor(width * factor)
+            height = floor(height * factor)
+            img = img.resize((width, height))
+            print(f'Resized image to {width}x{height}.')
+        pixels = img.load()
+    return pixels, width, height
 
 
 def nearest_block(nearest_so_far: Dict[Color, Block], blocks: Set[Block], color):
@@ -56,19 +71,8 @@ def nearest_block(nearest_so_far: Dict[Color, Block], blocks: Set[Block], color)
 
 
 def main():
-    blocks = read_blocks()
-
-    with Image.open('image.jpg') as img:
-        width, height = img.size
-        if width > 256 or height > 256:
-            print(f'Image too big ({width}x{height}), scaling down.')
-            biggest = max(width, height)
-            factor = 256 / biggest
-            width = floor(width * factor)
-            height = floor(height * factor)
-            img = img.resize((width, height))
-            print(f'Resized image to {width}x{height}.')
-        pixels = img.load()
+    blocks = read_blocks('blocks.txt')
+    pixels, width, height = read_image('image.jpg')
 
     nearest_so_far = {}  # cache found blocks to prevent future lookups - works best with flat-color images
     with Client('127.0.0.1', 25575, passwd='cuzco') as client:
